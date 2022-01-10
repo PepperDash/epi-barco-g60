@@ -21,5 +21,29 @@ namespace Plugin.BarcoG60
 		/// </summary>
         [JsonProperty("warmingTimeMs")]
         public uint WarmingTimeMs { get; set; }
+
+        /// <summary>
+        /// Device ID
+        /// </summary>
+        [JsonProperty("id")]
+        public uint Id { get; set; }
+
+        /// <summary>
+        /// Has lamp feedback
+        /// </summary>
+        [JsonProperty("hasLamps")]
+        public bool HasLamps { get; set; }
+
+        /// <summary>
+        /// Has screen feedback
+        /// </summary>
+        [JsonProperty("hasScreen")]
+        public bool HasScreen { get; set; }
+
+        /// <summary>
+        /// Has lift feedback
+        /// </summary>
+        [JsonProperty("hasLift")]
+        public bool HasLift { get; set; }
 	}
 }
