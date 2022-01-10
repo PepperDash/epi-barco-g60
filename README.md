@@ -1,5 +1,3 @@
-# UNDER DEVELOPMENT
-
 # Barco G60 Projector Essentials Plugin (c) 2022
 
 ## Overview
@@ -68,23 +66,73 @@ This plugin is designed to work with Barco G60 projector controlled via Telnet (
 }
 ```
 
+### Bridge
+```json
+{
+                "key": "plugin-bridge1",
+                "uid": 3,
+                "name": "Plugin Bridge",
+                "group": "api",
+                "type": "eiscApiAdvanced",
+                "properties": {
+                    "control": {
+                        "tcpSshProperties": {
+                            "address": "127.0.0.2",
+                            "port": 0
+                        },
+                        "ipid": "B2",
+                        "method": "ipidTcp"
+                    },
+                    "devices": [
+                        {
+                            "deviceKey": "projector1",
+                            "joinStart": 1
+                        }
+                    ]
+                }
+            }
+```
 
-## License
 
-Provided under [MIT License](LICENSE.md)
+### SiMPL EISC Bridge Map
 
-# Contributing
+The tables below document the digital, analog, and serial joins of PepeprDash Essentials DisplayBase used to build the plugin.
 
-## Dependencies
+#### Digitals
+| dig-o (Input/Triggers)     | I/O | dig-i (Feedback)                               |
+| -------------------------- | --- | ---------------------------------------------- |
+| Power Off                  | 1   | Power Off feedback                             |
+| Power On                   | 2   | Power On Feedback                              |
+|                            | 3   | Is 2-way Display Feedback                      |
+| Input Select 1 - HDMI 1    | 11  | Input 1 Feedback - HDMI 1                      |
+| Input Select 2 - HDMI 2    | 12  | Input 2 Feedback - HDMI 2                      |
+| Input Select 3 - DVI       | 13  | Input 3 Feedback - DVI                         |
+| Input Select 4 - VGA       | 14  | Input 4 Feedback - VGA                         |
+| Input Select 5 - SDI       | 15  | Input 5 Feedback - SDI                         |
+| Input Select 6 - HD Base-T | 16  | Input 6 Feedback - HD Base-T                   |
+|                            | 41  | Input 1 Button Visibility Feedback - HDMI 1    |
+|                            | 42  | Input 2 Button Visibility Feedback - HDMI 2    |
+|                            | 43  | Input 3 Button Visibility Feedback - DVI       |
+|                            | 44  | Input 4 Button Visibility Feedback - VGA       |
+|                            | 45  | Input 5 Button Visibility Feedback - SDI       |
+|                            | 46  | Input 6 Button Visibility Feedback - HD Base-T |
+|                            | 50  | Device Is Online Feedback                      |
 
-The [Essentials](https://github.com/PepperDash/Essentials) libraries are required. They are referenced via nuget. You must have nuget.exe installed and in the `PATH` environment variable to use the following command. Nuget.exe is available at [nuget.org](https://dist.nuget.org/win-x86-commandline/latest/nuget.exe).
+#### Analogs
+| an_o (Input/Triggers) | I/O | an_i (Feedback)         |
+| --------------------- | --- | ----------------------- |
+|                       | 1   | Socket Status Feedback  |
+|                       | 2   | Monitor Status Feedback |
+| Input Select          | 11  | Input Feedback          |
 
-### Installing Dependencies
 
-To install dependencies once nuget.exe is installed, run the following command from the root directory of your repository:
-`nuget install .\packages.config -OutputDirectory .\packages -excludeVersion`.
-To verify that the packages installed correctly, open the plugin solution in your repo and make sure that all references are found, then try and build it.
-
-### Installing Different versions of PepperDash Core
-
-If you need a different version of PepperDash Core, use the command `nuget install .\packages.config -OutputDirectory .\packages -excludeVersion -Version {versionToGet}`. Omitting the `-Version` option will pull the version indicated in the packages.config file.
+#### Serials
+| serial-o (Input/Triggers) | I/O | serial-i (Feedback)               |
+| ------------------------- | --- | --------------------------------- |
+|                           | 1   | Device Name Feedback              |
+|                           | 11  | Input 1 Name Feedback - HDMI 1    |
+|                           | 12  | Input 2 Name Feedback - HDMI 2    |
+|                           | 13  | Input 3 Name Feedback - DVI       |
+|                           | 14  | Input 4 Name Feedback - VGA       |
+|                           | 15  | Input 5 Name Feedback - SDI       |
+|                           | 16  | Input 6 Name Feedback - HD Base-T |

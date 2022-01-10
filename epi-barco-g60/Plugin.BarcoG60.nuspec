@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package >
+  <metadata>
+    <id>PepperDash.Essentials.Plugin.Projector.BarcoG60</id>
+    <version>1.0.0</version>
+    <title>PepperDash Essentials Barco G60 Projector Plugin</title>
+    <authors>PepperDash Technologies</authors>
+    <owners>pepperdash</owners>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <license type="expression">MIT</license>
+    <projectUrl>https://github.com/PepperDash-Engineering/epi-projector-barco-g60</projectUrl>
+    <copyright>Copyright 2022</copyright>
+    <description>This software is a plugin designed to work as a part of PepperDash Essentials for Crestron control processors.  It provides control and feedback for Barco G60 Projector.</description>
+    <tags>crestron 3series 4series</tags>
+    <repository type="git" url="https://github.com/PepperDash-Engineering/epi-projector-barco-g60"/>
+    <dependencies>
+      <dependency id="PepperDashEssentials" version="[1.9.7)"/>
+    </dependencies>
+  </metadata>
+  <files>
+    <file src="**" target="lib\net35"/>
+    <file src="**" target="lib\net47"/>
+  </files>
+</package>
