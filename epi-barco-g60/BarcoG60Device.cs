@@ -272,27 +272,15 @@ namespace Plugin.BarcoG60
 
 		private void ProcessResponse(string response)
 		{
-			// ex poll tx/rx
-			// Tx: "[DPON0]\x0D\x0A"
-			// Rx: "[DPON0]\x0D\x0A"			
+			if (string.IsNullOrEmpty(response)) return;
 
 			Debug.Console(DebugNotice, this, "ProcessResponse: {0}", response);
-
-			// https://stackoverflow.com/questions/7175580/use-string-contains-with-switch
-			//string[] responseTypes = new string[]
-			//{
-			//    "DPON",     // index-0: screen - direct power
-			//    "SBPM",     // index-1: screen - standby power mode
-			//    "MSRC",     // index-2: screen - PIP-PBP - main source
-			//    "ASPR",     // index-3: screen - aspect ratio
-			//    "LSHS",     // index-4: light source - light source info - LD hours
-			//};
 
 			var responseData = response.Trim('[').Split('!');
 			var responseType = string.IsNullOrEmpty(responseData[0]) ? "" : responseData[0];
 			var responseValue = string.IsNullOrEmpty(responseData[1]) ? "" : responseData[1];
 
-			Debug.Console(DebugVerbose, this, "ProcessorResponse: responseType-'{0}', responseValue-'{1}'", responseType, responseValue);
+			Debug.Console(DebugVerbose, this, "ProcessResponse: responseType-'{0}', responseValue-'{1}'", responseType, responseValue);
 
 			switch (responseType)
 			{
@@ -336,6 +324,12 @@ namespace Plugin.BarcoG60
 
 		public void SendText(string cmd)
 		{
+			if (!Communication.IsConnected)
+			{
+				Debug.Console(DebugNotice, this, "SendText: device {0} connected", Communication.IsConnected ? "is" : "is not");
+				return;
+			}
+
 			if (string.IsNullOrEmpty(cmd)) return;
 
 			// tx format: "[{cmd}{value}]"
@@ -345,6 +339,12 @@ namespace Plugin.BarcoG60
 		// formats outgoing message
 		private void SendText(string cmd, string value)
 		{
+			if (!Communication.IsConnected)
+			{
+				Debug.Console(DebugNotice, this, "SendText: device {0} connected", Communication.IsConnected ? "is" : "is not");
+				return;
+			}
+
 			if (string.IsNullOrEmpty(cmd)) return;
 
 			// tx format: "[{cmd}{value}]"
@@ -354,6 +354,12 @@ namespace Plugin.BarcoG60
 		// formats outgoing message
 		private void SendText(string cmd, int value)
 		{
+			if (!Communication.IsConnected)
+			{
+				Debug.Console(DebugNotice, this, "SendText: device {0} connected", Communication.IsConnected ? "is" : "is not");
+				return;
+			}
+
 			if (string.IsNullOrEmpty(cmd)) return;
 
 			// tx format: "[{cmd}{value}]"
@@ -643,7 +649,7 @@ namespace Plugin.BarcoG60
 			if (newInput == null) return;
 			if (newInput == _currentInputPort)
 			{
-				Debug.Console(DebugNotice, this, "UpdateInputFb: _currentInputPort-'{0}' == newInput-'{1')", _currentInputPort.Key, newInput.Key);
+				Debug.Console(DebugNotice, this, "UpdateInputFb: _currentInputPort-'{0}' == newInput-'{1}'", _currentInputPort.Key, newInput.Key);
 				return;
 			}
 
