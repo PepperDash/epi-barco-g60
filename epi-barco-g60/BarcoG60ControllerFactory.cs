@@ -10,7 +10,7 @@ namespace Plugin.BarcoG60
         {
             TypeNames = new List<string> {"barcoG60", "barcoG60Projector" };
 
-            MinimumEssentialsFrameworkVersion = "1.9.7";
+            MinimumEssentialsFrameworkVersion = "1.10.3";
         }
 
         #region Overrides of EssentialsDeviceFactory<BarcoG60Controller>

@@ -1,8 +1,9 @@
 ﻿using PepperDash.Essentials.Core;
+using PepperDash.Essentials.Core.Bridges;
 
 namespace Plugin.BarcoG60
 {
-    public class BarcoG60BridgeJoinMap : JoinMapBaseAdvanced
+    public class BarcoG60BridgeJoinMap : DisplayControllerJoinMap
     {
         #region Digitals
 
