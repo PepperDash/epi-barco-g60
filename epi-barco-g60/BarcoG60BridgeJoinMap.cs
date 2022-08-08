@@ -152,6 +152,20 @@ namespace Plugin.BarcoG60
         //        JoinType = eJoinType.Analog
         //    });
 
+		[JoinName("LampHours")]
+		public JoinDataComplete LampHours = new JoinDataComplete(
+			new JoinData
+			{
+				JoinNumber = 6,
+				JoinSpan = 1
+			},
+			new JoinMetadata
+			{
+				Description = "Reports current lamp hours",
+				JoinCapabilities = eJoinCapabilities.ToFromSIMPL,
+				JoinType = eJoinType.Analog
+			});
+
         #endregion
 
 

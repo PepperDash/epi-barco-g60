@@ -43,6 +43,8 @@ namespace Plugin.BarcoG60
 
 			ResetDebugLevels();
 
+			LampHoursFeedback = new IntFeedback(() => LampHours);
+
 			Communication = comms;
 
 			_receiveQueue = new GenericQueue(key + "-queue");
@@ -161,6 +163,9 @@ namespace Plugin.BarcoG60
 			CurrentInputFeedback.OutputChange +=
 				(sender, args) => Debug.Console(DebugNotice, this, "CurrentInputFeedback: {0}", args.StringValue);
 
+			// lamp hours feeback
+			LampHoursFeedback.LinkInputSig(trilist.UShortInput[joinMap.LampHours.JoinNumber]);
+
 
 			// bridge online change
 			trilist.OnlineStatusChange += (sender, args) =>
@@ -183,6 +188,8 @@ namespace Plugin.BarcoG60
 					var inputIndex = i;
 					InputFeedback[inputIndex].FireUpdate();
 				}
+
+				LampHoursFeedback.FireUpdate();
 			};
 		}
 
@@ -276,6 +283,12 @@ namespace Plugin.BarcoG60
 
 			Debug.Console(DebugNotice, this, "ProcessResponse: {0}", response);
 
+			if (!response.Contains("!") || response.Contains("ERR"))
+			{
+				Debug.Console(DebugVerbose, this, "ProcessResponse: '{0}' is not tracked", response);
+				return;
+			}
+
 			var responseData = response.Trim('[').Split('!');
 			var responseType = string.IsNullOrEmpty(responseData[0]) ? "" : responseData[0];
 			var responseValue = string.IsNullOrEmpty(responseData[1]) ? "" : responseData[1];
@@ -311,7 +324,7 @@ namespace Plugin.BarcoG60
 					}
 				case "LSHS":
 					{
-						Debug.Console(DebugVerbose, this, "ProcessRespopnse: light source response '{0}' not tracked", responseType);
+						LampHours = Convert.ToInt16(responseValue);
 						break;
 					}
 				default:
@@ -863,9 +876,39 @@ namespace Plugin.BarcoG60
 				PowerGet();
 				CrestronEnvironment.Sleep(2000);
 				InputGet();
+				CrestronEnvironment.Sleep(2000);
+				LampGet();
 			});
 		}
 
+
+		/// <summary>
+		/// Lamp hours feedback
+		/// </summary>
+		public IntFeedback LampHoursFeedback { get; set; }
+
+		private int _lampHours;
+
+		/// <summary>
+		/// Lamp hours property
+		/// </summary>
+		public int LampHours
+		{
+			get { return _lampHours; }
+			set
+			{
+				_lampHours = value;
+				LampHoursFeedback.FireUpdate();
+			}
+		}
+
+		/// <summary>
+		/// Polls for lamp hours/laser runtime
+		/// </summary>
+		public void LampGet()
+		{
+			SendText("LSHS", "?");
+		}
 
 
 		#region DebugLevels
