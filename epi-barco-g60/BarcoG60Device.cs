@@ -146,7 +146,7 @@ namespace Plugin.BarcoG60
 					SetInput = inputIndex;
 				});
 
-				trilist.StringInput[(ushort)(joinMap.InputNamesOffset.JoinNumber + inputIndex)].StringValue = input.Key;
+				trilist.StringInput[(ushort)(joinMap.InputNamesOffset.JoinNumber + inputIndex)].StringValue = string.IsNullOrEmpty(input.Key) ? string.Empty : input.Key;
 
 				InputFeedback[inputIndex].LinkInputSig(trilist.BooleanInput[joinMap.InputSelectOffset.JoinNumber + (uint)inputIndex]);
 			}
@@ -159,9 +159,11 @@ namespace Plugin.BarcoG60
 			});
 
 			// input (analog feedback)
-			CurrentInputNumberFeedback.LinkInputSig(trilist.UShortInput[joinMap.InputSelect.JoinNumber]);
-			CurrentInputFeedback.OutputChange +=
-				(sender, args) => Debug.Console(DebugNotice, this, "CurrentInputFeedback: {0}", args.StringValue);
+			if (CurrentInputNumberFeedback != null)
+				CurrentInputNumberFeedback.LinkInputSig(trilist.UShortInput[joinMap.InputSelect.JoinNumber]);
+
+			if(CurrentInputFeedback != null)
+				CurrentInputFeedback.OutputChange += (sender, args) => Debug.Console(DebugNotice, this, "CurrentInputFeedback: {0}", args.StringValue);
 
 			// lamp hours feeback
 			LampHoursFeedback.LinkInputSig(trilist.UShortInput[joinMap.LampHours.JoinNumber]);
@@ -180,13 +182,17 @@ namespace Plugin.BarcoG60
 				trilist.SetBool(joinMap.HasLift.JoinNumber, HasLift);
 
 				PowerIsOnFeedback.FireUpdate();
-				CurrentInputFeedback.FireUpdate();
-				CurrentInputNumberFeedback.FireUpdate();
+
+				if(CurrentInputFeedback != null)
+					CurrentInputFeedback.FireUpdate();
+				if(CurrentInputNumberFeedback != null)
+					CurrentInputNumberFeedback.FireUpdate();
 
 				for (var i = 0; i < InputPorts.Count; i++)
 				{
 					var inputIndex = i;
-					InputFeedback[inputIndex].FireUpdate();
+					if(InputFeedback != null)
+						InputFeedback[inputIndex].FireUpdate();
 				}
 
 				LampHoursFeedback.FireUpdate();
@@ -442,6 +448,12 @@ namespace Plugin.BarcoG60
 		public IntFeedback CurrentInputNumberFeedback;
 
 		private RoutingInputPort _currentInputPort;
+
+		protected override Func<string> CurrentInputFeedbackFunc
+		{
+			get { return () => _currentInputPort != null ? _currentInputPort.Key : string.Empty; }
+		}
+
 		private List<bool> _inputFeedback;
 		private int _currentInputNumber;
 
@@ -497,11 +509,6 @@ namespace Plugin.BarcoG60
 		{
 			port.FeedbackMatchObject = fbMatch;
 			InputPorts.Add(port);
-		}
-
-		protected override Func<string> CurrentInputFeedbackFunc
-		{
-			get { return () => _currentInputPort.Key; }
 		}
 
 		private void InitializeInputs()
@@ -871,14 +878,17 @@ namespace Plugin.BarcoG60
 		/// </summary>
 		public void StatusGet()
 		{
-			CrestronInvoke.BeginInvoke((o) =>
-			{
-				PowerGet();
-				CrestronEnvironment.Sleep(2000);
-				InputGet();
-				CrestronEnvironment.Sleep(2000);
-				LampGet();
-			});
+			PowerGet();
+
+			if (!PowerIsOn) return;
+
+			CrestronEnvironment.Sleep(2000);
+			InputGet();
+
+			if (!HasLamps) return;
+
+			CrestronEnvironment.Sleep(2000);
+			LampGet();
 		}
 
 
