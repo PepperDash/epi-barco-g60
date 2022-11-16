@@ -20,6 +20,7 @@ namespace Plugin.BarcoG60
 		// https://www.barco.com/en/support/g60-w10/docs
 		// https://www.barco.com/services/website/en/TdeFiles/Download?FileNumber=R5910887&TdeType=1&Revision=01&ShowDownloadPage=False
 
+		private bool _isSerialComm;
 		private bool HasLamps { get; set; }
 		private bool HasScreen { get; set; }
 		private bool HasLift { get; set; }
@@ -63,8 +64,8 @@ namespace Plugin.BarcoG60
 
 			DeviceManager.AddDevice(CommunicationMonitor);
 
-			WarmupTime = props.WarmingTimeMs > 10000 ? props.WarmingTimeMs : 15000;
-			CooldownTime = props.CoolingTimeMs > 10000 ? props.CoolingTimeMs : 15000;
+			WarmupTime = props.WarmingTimeMs > 30000 ? props.WarmingTimeMs : 30000;
+			CooldownTime = props.CoolingTimeMs > 30000 ? props.CoolingTimeMs : 30000;
 
 			HasLamps = props.HasLamps;
 			HasScreen = props.HasScreen;
@@ -576,7 +577,6 @@ namespace Plugin.BarcoG60
 		/// </summary>
 		public void InputHdmi1()
 		{
-			// TODO [ ] verify input selection commands
 			SendText("MSRC", 1);
 		}
 
@@ -585,7 +585,6 @@ namespace Plugin.BarcoG60
 		/// </summary>
 		public void InputHdmi2()
 		{
-			// TODO [ ] verify input selection commands
 			SendText("MSRC", 2);
 		}
 
@@ -610,7 +609,6 @@ namespace Plugin.BarcoG60
 		/// </summary>
 		public void InputDvi1()
 		{
-			// TODO [ ] verify input selection commands
 			SendText("MSRC", 3);
 		}
 
@@ -619,7 +617,6 @@ namespace Plugin.BarcoG60
 		/// </summary>
 		public void InputHdBaseT1()
 		{
-			// TODO [ ] verify input selection commands
 			SendText("MSRC", 4);
 		}
 
@@ -628,7 +625,6 @@ namespace Plugin.BarcoG60
 		/// </summary>
 		public void InputVga1()
 		{
-			// TODO [ ] verify input selection commands
 			SendText("MSRC", 0);
 		}
 
@@ -637,7 +633,6 @@ namespace Plugin.BarcoG60
 		/// </summary>
 		public void InputSdi1()
 		{
-			// TODO [ ] verify input selection commands
 			SendText("MSRC", 5);
 		}
 
@@ -646,9 +641,6 @@ namespace Plugin.BarcoG60
 		/// </summary>
 		public void InputToggle()
 		{
-			// TODO [ ] Fill in input recall command and values
-			//SendText("", "");
-
 			throw new NotImplementedException();
 		}
 
@@ -657,7 +649,6 @@ namespace Plugin.BarcoG60
 		/// </summary>
 		public void InputGet()
 		{
-			// TODO [ ] verify input poll command
 			SendText("MSRC", "?");
 		}
 
@@ -683,7 +674,7 @@ namespace Plugin.BarcoG60
 
 			var key = newInput.Key;
 			Debug.Console(DebugNotice, this, "UpdateInputFb: key-'{0}'", key);
-			// TODO [ ] Update input values to align with API
+			
 			switch (key)
 			{
 				case "hdmiIn1":
@@ -743,7 +734,6 @@ namespace Plugin.BarcoG60
 		#region Power
 
 		private bool _isCoolingDown;
-		private bool _isSerialComm;
 		private bool _isWarmingUp;
 		private bool _powerIsOn;
 

@@ -1,7 +1,7 @@
 ﻿using System.Reflection;
 
 [assembly: AssemblyTitle("PepperDash.Essentials.Plugin.Projector.BarcoG60")]
-[assembly: AssemblyCompany("")]
+[assembly: AssemblyCompany("PepperDash")]
 [assembly: AssemblyProduct("PepperDash.Essentials.Plugin.Projector.BarcoG60")]
 [assembly: AssemblyCopyright("Copyright ©  2022")]
 [assembly: AssemblyVersion("0.0.0.*")]
