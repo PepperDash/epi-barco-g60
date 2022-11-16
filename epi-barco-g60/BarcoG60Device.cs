@@ -124,13 +124,15 @@ namespace Plugin.BarcoG60
 				CommunicationMonitor.IsOnlineFeedback.LinkInputSig(trilist.BooleanInput[joinMap.IsOnline.JoinNumber]);
 			}
 
-			// power off
+			// power off & is cooling
 			trilist.SetSigTrueAction(joinMap.PowerOff.JoinNumber, PowerOff);
 			PowerIsOnFeedback.LinkComplementInputSig(trilist.BooleanInput[joinMap.PowerOff.JoinNumber]);
+			IsCoolingDownFeedback.LinkInputSig(trilist.BooleanInput[joinMap.IsCooling.JoinNumber]);
 
-			// power on 
+			// power on & is warming
 			trilist.SetSigTrueAction(joinMap.PowerOn.JoinNumber, PowerOn);
 			PowerIsOnFeedback.LinkInputSig(trilist.BooleanInput[joinMap.PowerOn.JoinNumber]);
+			IsWarmingUpFeedback.LinkInputSig(trilist.BooleanInput[joinMap.IsWarming.JoinNumber]);
 
 			// input (digital select, digital feedback, names)
 			for (var i = 0; i < InputPorts.Count; i++)
@@ -162,7 +164,7 @@ namespace Plugin.BarcoG60
 			if (CurrentInputNumberFeedback != null)
 				CurrentInputNumberFeedback.LinkInputSig(trilist.UShortInput[joinMap.InputSelect.JoinNumber]);
 
-			if(CurrentInputFeedback != null)
+			if (CurrentInputFeedback != null)
 				CurrentInputFeedback.OutputChange += (sender, args) => Debug.Console(DebugNotice, this, "CurrentInputFeedback: {0}", args.StringValue);
 
 			// lamp hours feeback
@@ -183,15 +185,15 @@ namespace Plugin.BarcoG60
 
 				PowerIsOnFeedback.FireUpdate();
 
-				if(CurrentInputFeedback != null)
+				if (CurrentInputFeedback != null)
 					CurrentInputFeedback.FireUpdate();
-				if(CurrentInputNumberFeedback != null)
+				if (CurrentInputNumberFeedback != null)
 					CurrentInputNumberFeedback.FireUpdate();
 
 				for (var i = 0; i < InputPorts.Count; i++)
 				{
 					var inputIndex = i;
-					if(InputFeedback != null)
+					if (InputFeedback != null)
 						InputFeedback[inputIndex].FireUpdate();
 				}
 
