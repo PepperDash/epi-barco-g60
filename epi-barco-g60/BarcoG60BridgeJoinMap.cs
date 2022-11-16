@@ -105,6 +105,34 @@ namespace Plugin.BarcoG60
                 JoinType = eJoinType.Digital
             });
 
+		[JoinName("IsWarming")]
+		public JoinDataComplete IsWarming = new JoinDataComplete(
+			new JoinData
+			{
+				JoinNumber = 36,
+				JoinSpan = 1
+			},
+			new JoinMetadata
+			{
+				Description = "Device is warming feedback",
+				JoinCapabilities = eJoinCapabilities.ToSIMPL,
+				JoinType = eJoinType.Digital
+			});
+
+		[JoinName("IsCooling")]
+		public JoinDataComplete IsCooling = new JoinDataComplete(
+			new JoinData
+			{
+				JoinNumber = 37,
+				JoinSpan = 1
+			},
+			new JoinMetadata
+			{
+				Description = "Device is cooling feedback",
+				JoinCapabilities = eJoinCapabilities.ToSIMPL,
+				JoinType = eJoinType.Digital
+			});
+
         //[JoinName("ButtonVisibilityOffset")]
         //public JoinDataComplete ButtonVisibilityOffset = new JoinDataComplete(
         //    new JoinData

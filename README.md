@@ -31,8 +31,11 @@ This plugin is designed to work with Barco G60 projector controlled via Telnet (
       }
     },
     "pollIntervalMs": 60000,
-    "coolingTimeMs": 15000,
-    "warmingTimeMs": 15000
+    "coolingTimeMs": 30000,
+    "warmingTimeMs": 30000,
+    "hasLamps": true,
+    "hasScreen": true,
+    "hasLift": false
   }
 }
 ```
@@ -60,11 +63,18 @@ This plugin is designed to work with Barco G60 projector controlled via Telnet (
       }
     },
     "pollIntervalMs": 60000,
-    "coolingTimeMs": 15000,
-    "warmingTimeMs": 15000
+    "coolingTimeMs": 30000,
+    "warmingTimeMs": 30000,
+    "hasLamps": true,
+    "hasScreen": true,
+    "hasLift": false
   }
 }
 ```
+
+#### Notes
+
+`hasLamps`, `hasScreen`, `hasLift` are configuration options that are exposed via the Bridge and can be leveraged by the developer in SIMPL.
 
 ### Bridge
 ```json
@@ -110,6 +120,11 @@ The tables below document the digital, analog, and serial joins of PepeprDash Es
 | Input Select 4 - VGA       | 14  | Input 4 Feedback - VGA                         |
 | Input Select 5 - SDI       | 15  | Input 5 Feedback - SDI                         |
 | Input Select 6 - HD Base-T | 16  | Input 6 Feedback - HD Base-T                   |
+|                            | 31  | Has Lamps Configuration Feedback               |
+|                            | 32  | Has Screen Configuration Feedback              |
+|                            | 33  | Has Lift Configuration Feedback                |
+|                            | 36  | Is Warming Feedback                            |
+|                            | 37  | Is Cooling Feedback                            |
 |                            | 41  | Input 1 Button Visibility Feedback - HDMI 1    |
 |                            | 42  | Input 2 Button Visibility Feedback - HDMI 2    |
 |                            | 43  | Input 3 Button Visibility Feedback - DVI       |
