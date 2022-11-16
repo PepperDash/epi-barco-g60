@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using Crestron.SimplSharp;
+using Crestron.SimplSharpPro.CrestronThread;
 using Crestron.SimplSharpPro.DeviceSupport;
 using PepperDash.Core;
 using PepperDash.Essentials.Core;
@@ -145,8 +146,8 @@ namespace Plugin.BarcoG60
 
 				trilist.SetSigTrueAction((ushort)(joinMap.InputSelectOffset.JoinNumber + inputIndex), () =>
 				{
-					Debug.Console(DebugVerbose, this, "InputSelect Digital-'{0}'", inputIndex);
-					SetInput = inputIndex;
+					Debug.Console(DebugVerbose, this, "InputSelect Digital-'{0}'", inputIndex + 1);
+					SetInput = inputIndex + 1;
 				});
 
 				trilist.StringInput[(ushort)(joinMap.InputNamesOffset.JoinNumber + inputIndex)].StringValue = string.IsNullOrEmpty(input.Key) ? string.Empty : input.Key;
@@ -280,9 +281,9 @@ namespace Plugin.BarcoG60
 			}
 			catch (Exception ex)
 			{
-				Debug.Console(DebugNotice, this, Debug.ErrorLogLevel.Error, "HandleLineReceived Exception Message: {0}", ex.Message);
-				Debug.Console(DebugVerbose, this, Debug.ErrorLogLevel.Error, "HandleLineRecieved Exception Stack Trace: {0}", ex.StackTrace);
-				if (ex.InnerException != null) Debug.Console(DebugNotice, this, Debug.ErrorLogLevel.Error, "HandleLineReceived Inner Exception: '{0}'", ex.InnerException);
+				Debug.Console(DebugNotice, this, Debug.ErrorLogLevel.Error, "HandleLineReceived Exception: {0}", ex.Message);
+				Debug.Console(DebugVerbose, this, Debug.ErrorLogLevel.Error, "HandleLineRecieved StackTrace: {0}", ex.StackTrace);
+				if (ex.InnerException != null) Debug.Console(DebugNotice, this, Debug.ErrorLogLevel.Error, "HandleLineReceived InnerException: '{0}'", ex.InnerException);
 			}
 		}
 
@@ -355,37 +356,23 @@ namespace Plugin.BarcoG60
 			if (string.IsNullOrEmpty(cmd)) return;
 
 			// tx format: "[{cmd}{value}]"
-			Communication.SendText(string.Format("[{0}]", cmd));
+			var text = string.Format("[{0}]", cmd);
+			Debug.Console(DebugNotice, this, "SendText: {0}", text);
+			Communication.SendText(text);
 		}
 
 		// formats outgoing message
 		private void SendText(string cmd, string value)
 		{
-			if (!Communication.IsConnected)
-			{
-				Debug.Console(DebugNotice, this, "SendText: device {0} connected", Communication.IsConnected ? "is" : "is not");
-				return;
-			}
-
-			if (string.IsNullOrEmpty(cmd)) return;
-
 			// tx format: "[{cmd}{value}]"
-			Communication.SendText(string.Format("[{0}{1}]", cmd, string.IsNullOrEmpty(value) ? "?" : value));
+			SendText(string.Format("{0}{1}", cmd, string.IsNullOrEmpty(value) ? "?" : value));
 		}
 
 		// formats outgoing message
 		private void SendText(string cmd, int value)
 		{
-			if (!Communication.IsConnected)
-			{
-				Debug.Console(DebugNotice, this, "SendText: device {0} connected", Communication.IsConnected ? "is" : "is not");
-				return;
-			}
-
-			if (string.IsNullOrEmpty(cmd)) return;
-
 			// tx format: "[{cmd}{value}]"
-			Communication.SendText(string.Format("[{0}{1}]", cmd, value.ToString(CultureInfo.InvariantCulture)));
+			SendText(string.Format("{0}{1}", cmd, value));
 		}
 
 		/// <summary>
@@ -397,25 +384,27 @@ namespace Plugin.BarcoG60
 			if (PowerIsOn)
 			{
 				var action = selector as Action;
+				Debug.Console(0, this, "ExecuteSwitch: action is {0}", action == null ? "null" : "not null");
 				if (action != null)
 				{
-					action();
+					CrestronInvoke.BeginInvoke(o => action());
 				}
 			}
 			else // if power is off, wait until we get on FB to send it. 
 			{
 				// One-time event handler to wait for power on before executing switch
 				EventHandler<FeedbackEventArgs> handler = null; // necessary to allow reference inside lambda to handler
-				handler = (o, a) =>
+				handler = (sender, args) =>
 				{
 					if (IsWarmingUp) return;
 
 					IsWarmingUpFeedback.OutputChange -= handler;
 
 					var action = selector as Action;
+					Debug.Console(0, this, "ExecuteSwitch: action is {0}", action == null ? "null" : "not null");
 					if (action != null)
 					{
-						action();
+						CrestronInvoke.BeginInvoke(o => action());
 					}
 				};
 				IsWarmingUpFeedback.OutputChange += handler; // attach and wait for on FB
@@ -468,11 +457,9 @@ namespace Plugin.BarcoG60
 			get { return _currentInputNumber; }
 			private set
 			{
-				if (_currentInputNumber == value) return;
-
 				_currentInputNumber = value;
 				CurrentInputNumberFeedback.FireUpdate();
-				UpdateBooleanFeedback(value);
+				UpdateInputBooleanFeedback();
 			}
 		}
 
@@ -483,7 +470,11 @@ namespace Plugin.BarcoG60
 		{
 			set
 			{
-				if (value <= 0 || value >= InputPorts.Count) return;
+				if (value <= 0 || value > InputPorts.Count)
+				{
+					Debug.Console(DebugNotice, this, "SetInput: value-'{0}' is out of range (1 - {1})", value, InputPorts.Count);
+					return;
+				}
 
 				Debug.Console(DebugNotice, this, "SetInput: value-'{0}'", value);
 
@@ -516,7 +507,6 @@ namespace Plugin.BarcoG60
 
 		private void InitializeInputs()
 		{
-			// TODO [ ] verify feedback match value ** last parameter of AddRoutingInputPort - string **
 			AddRoutingInputPort(
 				new RoutingInputPort(RoutingPortNames.HdmiIn1, eRoutingSignalType.Audio | eRoutingSignalType.Video,
 					eRoutingPortConnectionType.Hdmi, new Action(InputHdmi1), this), "01");
@@ -536,12 +526,12 @@ namespace Plugin.BarcoG60
 			// RoutingPortNames does not contain and SDI, using HdmiIn5
 			AddRoutingInputPort(
 				new RoutingInputPort(RoutingPortNames.HdmiIn5, eRoutingSignalType.Audio | eRoutingSignalType.Video,
-					eRoutingPortConnectionType.Sdi, new Action(InputSdi1), this), "05");
+					eRoutingPortConnectionType.Sdi, new Action(InputHdmi5), this), "05");
 
 			// RoutingPortNames does not contain and HD-BaseT, using HdmiIn4
 			AddRoutingInputPort(
 				new RoutingInputPort(RoutingPortNames.HdmiIn4, eRoutingSignalType.Audio | eRoutingSignalType.Video,
-					eRoutingPortConnectionType.Streaming, new Action(InputHdBaseT1), this), "04");
+					eRoutingPortConnectionType.Streaming, new Action(InputHdmi4), this), "04");
 
 			// initialize feedbacks after adding input ports
 			_inputFeedback = new List<bool>();
@@ -550,12 +540,16 @@ namespace Plugin.BarcoG60
 			for (var i = 0; i < InputPorts.Count; i++)
 			{
 				var input = i + 1;
-				InputFeedback.Add(new BoolFeedback(() => CurrentInputNumber == input));
+				InputFeedback.Add(new BoolFeedback(() =>
+				{
+					Debug.Console(DebugNotice, this, "CurrentInput Number: {0}; input: {1};", CurrentInputNumber, input);
+					return CurrentInputNumber == input;
+				}));
 			}
 
 			CurrentInputNumberFeedback = new IntFeedback(() =>
 			{
-				Debug.Console(DebugVerbose, this, "InputNumberFeedback: CurrentInputNumber-'{0}'", CurrentInputNumber);
+				Debug.Console(DebugVerbose, this, "CurrentInputNumberFeedback: {0}", CurrentInputNumber);
 				return CurrentInputNumber;
 			});
 		}
@@ -565,10 +559,12 @@ namespace Plugin.BarcoG60
 		/// </summary>
 		public void ListRoutingInputPorts()
 		{
+			var index = 0;
 			foreach (var inputPort in InputPorts)
 			{
-				Debug.Console(0, this, "ListRoutingInputPorts: key-'{0}', connectionType-'{1}', feedbackMatchObject-'{2}'",
-					inputPort.Key, inputPort.ConnectionType, inputPort.FeedbackMatchObject);
+				Debug.Console(0, this, "ListRoutingInputPorts: index-'{0}' key-'{1}', connectionType-'{2}', feedbackMatchObject-'{3}'",
+					index, inputPort.Key, inputPort.ConnectionType, inputPort.FeedbackMatchObject);
+				index++;
 			}
 		}
 
@@ -577,7 +573,10 @@ namespace Plugin.BarcoG60
 		/// </summary>
 		public void InputHdmi1()
 		{
+			Debug.Console(DebugVerbose, this, "InputHdmi1 executing...");
 			SendText("MSRC", 1);
+			Thread.Sleep(2000);
+			SendText("MSRC", "?");
 		}
 
 		/// <summary>
@@ -585,7 +584,10 @@ namespace Plugin.BarcoG60
 		/// </summary>
 		public void InputHdmi2()
 		{
+			Debug.Console(DebugVerbose, this, "InputHdmi2 executing...");
 			SendText("MSRC", 2);
+			Thread.Sleep(2000);
+			SendText("MSRC", "?");
 		}
 
 		/// <summary>
@@ -593,7 +595,10 @@ namespace Plugin.BarcoG60
 		/// </summary>
 		public void InputHdmi4()
 		{
-			InputHdBaseT1();
+			Debug.Console(DebugVerbose, this, "InputHdmi4 (HD-BaseT) executing...");
+			SendText("MSRC", 4);
+			Thread.Sleep(2000);
+			SendText("MSRC", "?");
 		}
 
 		/// <summary>
@@ -601,7 +606,10 @@ namespace Plugin.BarcoG60
 		/// </summary>
 		public void InputHdmi5()
 		{
-			InputSdi1();
+			Debug.Console(DebugVerbose, this, "InputHdmi5 (SDI) executing...");
+			SendText("MSRC", 5);
+			Thread.Sleep(2000);
+			SendText("MSRC", "?");
 		}
 
 		/// <summary>
@@ -609,15 +617,10 @@ namespace Plugin.BarcoG60
 		/// </summary>
 		public void InputDvi1()
 		{
+			Debug.Console(DebugVerbose, this, "InputDvi1 executing...");
 			SendText("MSRC", 3);
-		}
-
-		/// <summary>
-		/// Select HDBase-T 1
-		/// </summary>
-		public void InputHdBaseT1()
-		{
-			SendText("MSRC", 4);
+			Thread.Sleep(2000);
+			SendText("MSRC", "?");
 		}
 
 		/// <summary>
@@ -625,15 +628,10 @@ namespace Plugin.BarcoG60
 		/// </summary>
 		public void InputVga1()
 		{
+			Debug.Console(DebugVerbose, this, "InputVga1 executing...");
 			SendText("MSRC", 0);
-		}
-
-		/// <summary>
-		/// Select SDI 1
-		/// </summary>
-		public void InputSdi1()
-		{
-			SendText("MSRC", 5);
+			Thread.Sleep(2000);
+			SendText("MSRC", "?");
 		}
 
 		/// <summary>
@@ -672,27 +670,26 @@ namespace Plugin.BarcoG60
 			_currentInputPort = newInput;
 			CurrentInputFeedback.FireUpdate();
 
-			var key = newInput.Key;
-			Debug.Console(DebugNotice, this, "UpdateInputFb: key-'{0}'", key);
-			
-			switch (key)
+			Debug.Console(DebugNotice, this, "UpdateInputFb: _currentInputPort.key-'{0}'", _currentInputPort.Key);
+
+			switch (_currentInputPort.Key)
 			{
-				case "hdmiIn1":
+				case RoutingPortNames.HdmiIn1:
 					CurrentInputNumber = 1;
 					break;
-				case "hdmiIn2":
+				case RoutingPortNames.HdmiIn2:
 					CurrentInputNumber = 2;
 					break;
-				case "InputDvi1":
+				case RoutingPortNames.DviIn1:
 					CurrentInputNumber = 3;
 					break;
-				case "vga1":
+				case RoutingPortNames.VgaIn1:
 					CurrentInputNumber = 4;
 					break;
-				case "hdbaseT1":
+				case RoutingPortNames.HdmiIn5:
 					CurrentInputNumber = 5;
 					break;
-				case "sdi1":
+				case RoutingPortNames.HdmiIn4:
 					CurrentInputNumber = 6;
 					break;
 			}
@@ -701,31 +698,11 @@ namespace Plugin.BarcoG60
 		/// <summary>
 		/// Updates Digital Route Feedback for Simpl EISC
 		/// </summary>
-		/// <param name="data">currently routed source</param>
-		private void UpdateBooleanFeedback(int data)
+		private void UpdateInputBooleanFeedback()
 		{
-			try
+			foreach (var item in InputFeedback)
 			{
-				if (_inputFeedback[data])
-				{
-					return;
-				}
-
-				for (var i = 1; i < InputPorts.Count + 1; i++)
-				{
-					_inputFeedback[i] = false;
-				}
-
-				_inputFeedback[data] = true;
-				foreach (var item in InputFeedback)
-				{
-					var update = item;
-					update.FireUpdate();
-				}
-			}
-			catch (Exception e)
-			{
-				Debug.Console(0, this, "{0}", e.Message);
+				item.FireUpdate();
 			}
 		}
 
@@ -752,26 +729,6 @@ namespace Plugin.BarcoG60
 				}
 
 				_powerIsOn = value;
-
-				if (_powerIsOn)
-				{
-					IsWarmingUp = true;
-
-					WarmupTimer = new CTimer(o =>
-					{
-						IsWarmingUp = false;
-					}, WarmupTime);
-				}
-				else
-				{
-					IsCoolingDown = true;
-
-					CooldownTimer = new CTimer(o =>
-					{
-						IsCoolingDown = false;
-					}, CooldownTime);
-				}
-
 				PowerIsOnFeedback.FireUpdate();
 			}
 		}
@@ -786,6 +743,15 @@ namespace Plugin.BarcoG60
 			{
 				_isWarmingUp = value;
 				IsWarmingUpFeedback.FireUpdate();
+
+				if (_isWarmingUp)
+				{
+					WarmupTimer = new CTimer(t =>
+					{
+						_isWarmingUp = false;
+						IsWarmingUpFeedback.FireUpdate();
+					}, WarmupTime);
+				}
 			}
 		}
 
@@ -799,6 +765,15 @@ namespace Plugin.BarcoG60
 			{
 				_isCoolingDown = value;
 				IsCoolingDownFeedback.FireUpdate();
+
+				if (_isCoolingDown)
+				{
+					CooldownTimer = new CTimer(t =>
+					{
+						_isCoolingDown = false;
+						IsCoolingDownFeedback.FireUpdate();
+					}, CooldownTime);
+				}
 			}
 		}
 
@@ -822,10 +797,11 @@ namespace Plugin.BarcoG60
 		/// </summary>
 		public override void PowerOn()
 		{
-			if (_isWarmingUp || _isCoolingDown) return;
+			if (IsWarmingUp || IsCoolingDown) return;
+
+			if (!PowerIsOn) IsWarmingUp = true;
 
 			SendText("POWR", 1);		// power on, alternate cmds: "SBPM", "DPON"
-			//PowerIsOn = true;
 		}
 
 		/// <summary>
@@ -833,10 +809,11 @@ namespace Plugin.BarcoG60
 		/// </summary>
 		public override void PowerOff()
 		{
-			if (_isWarmingUp || _isCoolingDown) return;
+			if (IsWarmingUp || IsCoolingDown) return;
+
+			if (PowerIsOn) IsCoolingDown = true;
 
 			SendText("POWR", 0);		// power off, alternate cmds: "SBPM", "DPON" 
-			//PowerIsOn = false;
 		}
 
 		/// <summary>
