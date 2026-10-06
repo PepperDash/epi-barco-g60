@@ -6,17 +6,18 @@ using Crestron.SimplSharp;
 using Crestron.SimplSharpPro.CrestronThread;
 using Crestron.SimplSharpPro.DeviceSupport;
 using PepperDash.Core;
+using PepperDash.Core.Logging;
 using PepperDash.Essentials.Core;
 using PepperDash.Essentials.Core.Bridges;
+using PepperDash.Essentials.Core.DeviceTypeInterfaces;
 using PepperDash.Essentials.Core.Queues;
 using PepperDash.Essentials.Core.Routing;
-using PepperDash.Essentials.Devices.Displays;
+using PepperDash.Essentials.Devices.Common.Displays;
 
-namespace Plugin.BarcoG60
+namespace PepperDash.Essentials.Plugins.Barco.G60
 {
 	public class BarcoG60Controller : TwoWayDisplayBase, ICommunicationMonitor,
-		IInputHdmi1, IInputHdmi2, IInputHdmi4, IInputVga1,
-		IBridgeAdvanced
+		IBridgeAdvanced, IHasInputs<string>, IRoutingSinkWithSwitchingWithInputPort
 	{
 		// https://www.barco.com/en/support/g60-w10/docs
 		// https://www.barco.com/services/website/en/TdeFiles/Download?FileNumber=R5910887&TdeType=1&Revision=01&ShowDownloadPage=False
@@ -39,13 +40,12 @@ namespace Plugin.BarcoG60
 			var props = config;
 			if (props == null)
 			{
-				Debug.Console(0, this, Debug.ErrorLogLevel.Error, "{0} configuration must be included", key);
+				this.LogError("{Key} configuration must be included", key);
 				return;
 			}
 
-			ResetDebugLevels();
 
-			LampHoursFeedback = new IntFeedback(() => LampHours);
+			LampHoursFeedback = new IntFeedback("LampHours", () => LampHours);
 
 			Communication = comms;
 
@@ -106,8 +106,8 @@ namespace Plugin.BarcoG60
 				joinMap.SetCustomJoinData(customJoins);
 			}
 
-			Debug.Console(0, this, "Linking to Trilist '{0}'", trilist.ID.ToString("X"));
-			Debug.Console(0, this, "Linking to Bridge Type {0}", GetType().Name);
+			this.LogInformation("Linking to Trilist '{TrilistId}'", trilist.ID.ToString("X"));
+			this.LogInformation("Linking to Bridge Type {BridgeType}", GetType().Name);
 
 			// links to bridge
 			// device name
@@ -146,7 +146,7 @@ namespace Plugin.BarcoG60
 
 				trilist.SetSigTrueAction((ushort)(joinMap.InputSelectOffset.JoinNumber + inputIndex), () =>
 				{
-					Debug.Console(DebugVerbose, this, "InputSelect Digital-'{0}'", inputIndex + 1);
+					this.LogVerbose("InputSelect Digital-'{Input}'", inputIndex + 1);
 					SetInput = inputIndex + 1;
 				});
 
@@ -158,7 +158,7 @@ namespace Plugin.BarcoG60
 			// input (analog select)
 			trilist.SetUShortSigAction(joinMap.InputSelect.JoinNumber, analogValue =>
 			{
-				Debug.Console(DebugNotice, this, "InputSelect Analog-'{0}'", analogValue);
+				this.LogDebug("InputSelect Analog-'{Input}'", analogValue);
 				SetInput = analogValue;
 			});
 
@@ -167,7 +167,7 @@ namespace Plugin.BarcoG60
 				CurrentInputNumberFeedback.LinkInputSig(trilist.UShortInput[joinMap.InputSelect.JoinNumber]);
 
 			if (CurrentInputFeedback != null)
-				CurrentInputFeedback.OutputChange += (sender, args) => Debug.Console(DebugNotice, this, "CurrentInputFeedback: {0}", args.StringValue);
+				CurrentInputFeedback.OutputChange += (sender, args) => this.LogDebug("CurrentInputFeedback: {Input}", args.StringValue);
 
 			// lamp hours feeback
 			LampHoursFeedback.LinkInputSig(trilist.UShortInput[joinMap.LampHours.JoinNumber]);
@@ -264,26 +264,26 @@ namespace Plugin.BarcoG60
 		{
 			if (args == null)
 			{
-				Debug.Console(DebugNotice, this, "PortGather_LineReceived: args are null");
+				this.LogDebug("PortGather_LineReceived: args are null");
 				return;
 			}
 
 			if (string.IsNullOrEmpty(args.Text))
 			{
-				Debug.Console(DebugNotice, this, "PortGather_LineReceived: args.Text is null or empty");
+				this.LogDebug("PortGather_LineReceived: args.Text is null or empty");
 				return;
 			}
 
 			try
 			{
-				Debug.Console(DebugVerbose, this, "PortGather_LineReceived: args.Text-'{0}'", args.Text);
+				this.LogVerbose("PortGather_LineReceived: args.Text-'{Text}'", args.Text);
 				_receiveQueue.Enqueue(new ProcessStringMessage(args.Text, ProcessResponse));
 			}
 			catch (Exception ex)
 			{
-				Debug.Console(DebugNotice, this, Debug.ErrorLogLevel.Error, "HandleLineReceived Exception: {0}", ex.Message);
-				Debug.Console(DebugVerbose, this, Debug.ErrorLogLevel.Error, "HandleLineRecieved StackTrace: {0}", ex.StackTrace);
-				if (ex.InnerException != null) Debug.Console(DebugNotice, this, Debug.ErrorLogLevel.Error, "HandleLineReceived InnerException: '{0}'", ex.InnerException);
+				this.LogError(ex, "HandleLineReceived Exception: {Error}", ex.Message);
+				this.LogVerbose("HandleLineReceived StackTrace: {StackTrace}", ex.StackTrace);
+				if (ex.InnerException != null) this.LogError("HandleLineReceived InnerException: '{InnerException}'", ex.InnerException);
 			}
 		}
 
@@ -291,11 +291,11 @@ namespace Plugin.BarcoG60
 		{
 			if (string.IsNullOrEmpty(response)) return;
 
-			Debug.Console(DebugNotice, this, "ProcessResponse: {0}", response);
+			this.LogDebug("ProcessResponse: {Response}", response);
 
 			if (!response.Contains("!") || response.Contains("ERR"))
 			{
-				Debug.Console(DebugVerbose, this, "ProcessResponse: '{0}' is not tracked", response);
+				this.LogVerbose("ProcessResponse: '{Response}' is not tracked", response);
 				return;
 			}
 
@@ -303,7 +303,7 @@ namespace Plugin.BarcoG60
 			var responseType = string.IsNullOrEmpty(responseData[0]) ? "" : responseData[0];
 			var responseValue = string.IsNullOrEmpty(responseData[1]) ? "" : responseData[1];
 
-			Debug.Console(DebugVerbose, this, "ProcessResponse: responseType-'{0}', responseValue-'{1}'", responseType, responseValue);
+			this.LogVerbose("ProcessResponse: responseType-'{ResponseType}', responseValue-'{ResponseValue}'", responseType, responseValue);
 
 			switch (responseType)
 			{
@@ -329,7 +329,7 @@ namespace Plugin.BarcoG60
 					}
 				case "ASPR":
 					{
-						Debug.Console(DebugVerbose, this, "ProcessRespopnse: aspect ratio response '{0}' not tracked", responseType);
+						this.LogVerbose("ProcessResponse: aspect ratio response '{ResponseType}' not tracked", responseType);
 						break;
 					}
 				case "LSHS":
@@ -339,7 +339,7 @@ namespace Plugin.BarcoG60
 					}
 				default:
 					{
-						Debug.Console(DebugVerbose, this, "ProcessRespopnse: unknown response '{0}'", responseType);
+						this.LogVerbose("ProcessResponse: unknown response '{ResponseType}'", responseType);
 						break;
 					}
 			}
@@ -349,7 +349,7 @@ namespace Plugin.BarcoG60
 		{
 			if (!Communication.IsConnected)
 			{
-				Debug.Console(DebugNotice, this, "SendText: device {0} connected", Communication.IsConnected ? "is" : "is not");
+				this.LogDebug("SendText: device {ConnectionState} connected", Communication.IsConnected ? "is" : "is not");
 				return;
 			}
 
@@ -357,7 +357,7 @@ namespace Plugin.BarcoG60
 
 			// tx format: "[{cmd}{value}]"
 			var text = string.Format("[{0}]", cmd);
-			Debug.Console(DebugNotice, this, "SendText: {0}", text);
+			this.LogDebug("SendText: {Text}", text);
 			Communication.SendText(text);
 		}
 
@@ -384,7 +384,7 @@ namespace Plugin.BarcoG60
 			if (PowerIsOn)
 			{
 				var action = selector as Action;
-				Debug.Console(0, this, "ExecuteSwitch: action is {0}", action == null ? "null" : "not null");
+				this.LogInformation("ExecuteSwitch: action is {ActionState}", action == null ? "null" : "not null");
 				if (action != null)
 				{
 					CrestronInvoke.BeginInvoke(o => action());
@@ -401,7 +401,7 @@ namespace Plugin.BarcoG60
 					IsWarmingUpFeedback.OutputChange -= handler;
 
 					var action = selector as Action;
-					Debug.Console(0, this, "ExecuteSwitch: action is {0}", action == null ? "null" : "not null");
+					this.LogInformation("ExecuteSwitch: action is {ActionState}", action == null ? "null" : "not null");
 					if (action != null)
 					{
 						CrestronInvoke.BeginInvoke(o => action());
@@ -439,11 +439,14 @@ namespace Plugin.BarcoG60
 		/// </summary>
 		public IntFeedback CurrentInputNumberFeedback;
 
-		private RoutingInputPort _currentInputPort;
+		/// <summary>
+		/// Selectable inputs for the projector
+		/// </summary>
+		public ISelectableItems<string> Inputs { get; private set; }
 
 		protected override Func<string> CurrentInputFeedbackFunc
 		{
-			get { return () => _currentInputPort != null ? _currentInputPort.Key : string.Empty; }
+			get { return () => CurrentInputPort != null ? CurrentInputPort.Key : string.Empty; }
 		}
 
 		private List<bool> _inputFeedback;
@@ -472,21 +475,21 @@ namespace Plugin.BarcoG60
 			{
 				if (value <= 0 || value > InputPorts.Count)
 				{
-					Debug.Console(DebugNotice, this, "SetInput: value-'{0}' is out of range (1 - {1})", value, InputPorts.Count);
+					this.LogDebug("SetInput: value-'{Value}' is out of range (1 - {Count})", value, InputPorts.Count);
 					return;
 				}
 
-				Debug.Console(DebugNotice, this, "SetInput: value-'{0}'", value);
+				this.LogDebug("SetInput: value-'{Value}'", value);
 
 				// -1 to get actual input in list after 0d check
 				var port = GetInputPort(value - 1);
 				if (port == null)
 				{
-					Debug.Console(DebugNotice, this, "SetInput: failed to get input port");
+					this.LogDebug("SetInput: failed to get input port");
 					return;
 				}
 
-				Debug.Console(DebugVerbose, this, "SetInput: port.key-'{0}', port.Selector-'{1}', port.ConnectionType-'{2}', port.FeebackMatchObject-'{3}'",
+				this.LogVerbose("SetInput: port.key-'{Key}', port.Selector-'{Selector}', port.ConnectionType-'{ConnectionType}', port.FeebackMatchObject-'{FeedbackMatchObject}'",
 					port.Key, port.Selector, port.ConnectionType, port.FeedbackMatchObject);
 
 				ExecuteSwitch(port.Selector);
@@ -540,18 +543,23 @@ namespace Plugin.BarcoG60
 			for (var i = 0; i < InputPorts.Count; i++)
 			{
 				var input = i + 1;
-				InputFeedback.Add(new BoolFeedback(() =>
+				InputFeedback.Add(new BoolFeedback(string.Format("InputFeedback{0}", input), () =>
 				{
-					Debug.Console(DebugNotice, this, "CurrentInput Number: {0}; input: {1};", CurrentInputNumber, input);
+					this.LogDebug("CurrentInput Number: {CurrentInputNumber}; input: {Input};", CurrentInputNumber, input);
 					return CurrentInputNumber == input;
 				}));
 			}
 
-			CurrentInputNumberFeedback = new IntFeedback(() =>
+			CurrentInputNumberFeedback = new IntFeedback("CurrentInputNumber", () =>
 			{
-				Debug.Console(DebugVerbose, this, "CurrentInputNumberFeedback: {0}", CurrentInputNumber);
+				this.LogVerbose("CurrentInputNumberFeedback: {CurrentInputNumber}", CurrentInputNumber);
 				return CurrentInputNumber;
 			});
+
+			Inputs = new BarcoG60Inputs
+			{
+				Items = InputPorts.ToDictionary(p => p.Key, p => new BarcoG60Input(p.Key, p.Key, p.Selector as Action) as ISelectableItem)
+			};
 		}
 
 		/// <summary>
@@ -562,7 +570,7 @@ namespace Plugin.BarcoG60
 			var index = 0;
 			foreach (var inputPort in InputPorts)
 			{
-				Debug.Console(0, this, "ListRoutingInputPorts: index-'{0}' key-'{1}', connectionType-'{2}', feedbackMatchObject-'{3}'",
+				this.LogInformation("ListRoutingInputPorts: index-'{Index}' key-'{Key}', connectionType-'{ConnectionType}', feedbackMatchObject-'{FeedbackMatchObject}'",
 					index, inputPort.Key, inputPort.ConnectionType, inputPort.FeedbackMatchObject);
 				index++;
 			}
@@ -573,7 +581,7 @@ namespace Plugin.BarcoG60
 		/// </summary>
 		public void InputHdmi1()
 		{
-			Debug.Console(DebugVerbose, this, "InputHdmi1 executing...");
+			this.LogVerbose("InputHdmi1 executing...");
 			SendText("MSRC", 1);
 			Thread.Sleep(2000);
 			SendText("MSRC", "?");
@@ -584,7 +592,7 @@ namespace Plugin.BarcoG60
 		/// </summary>
 		public void InputHdmi2()
 		{
-			Debug.Console(DebugVerbose, this, "InputHdmi2 executing...");
+			this.LogVerbose("InputHdmi2 executing...");
 			SendText("MSRC", 2);
 			Thread.Sleep(2000);
 			SendText("MSRC", "?");
@@ -595,7 +603,7 @@ namespace Plugin.BarcoG60
 		/// </summary>
 		public void InputHdmi4()
 		{
-			Debug.Console(DebugVerbose, this, "InputHdmi4 (HD-BaseT) executing...");
+			this.LogVerbose("InputHdmi4 (HD-BaseT) executing...");
 			SendText("MSRC", 4);
 			Thread.Sleep(2000);
 			SendText("MSRC", "?");
@@ -606,7 +614,7 @@ namespace Plugin.BarcoG60
 		/// </summary>
 		public void InputHdmi5()
 		{
-			Debug.Console(DebugVerbose, this, "InputHdmi5 (SDI) executing...");
+			this.LogVerbose("InputHdmi5 (SDI) executing...");
 			SendText("MSRC", 5);
 			Thread.Sleep(2000);
 			SendText("MSRC", "?");
@@ -617,7 +625,7 @@ namespace Plugin.BarcoG60
 		/// </summary>
 		public void InputDvi1()
 		{
-			Debug.Console(DebugVerbose, this, "InputDvi1 executing...");
+			this.LogVerbose("InputDvi1 executing...");
 			SendText("MSRC", 3);
 			Thread.Sleep(2000);
 			SendText("MSRC", "?");
@@ -628,7 +636,7 @@ namespace Plugin.BarcoG60
 		/// </summary>
 		public void InputVga1()
 		{
-			Debug.Console(DebugVerbose, this, "InputVga1 executing...");
+			this.LogVerbose("InputVga1 executing...");
 			SendText("MSRC", 0);
 			Thread.Sleep(2000);
 			SendText("MSRC", "?");
@@ -658,21 +666,35 @@ namespace Plugin.BarcoG60
 		{
 			var newInput = InputPorts.FirstOrDefault(i => i.FeedbackMatchObject.Equals(s.ToLower()));
 			if (newInput == null) return;
-			if (newInput == _currentInputPort)
+			if (newInput == CurrentInputPort)
 			{
-				Debug.Console(DebugNotice, this, "UpdateInputFb: _currentInputPort-'{0}' == newInput-'{1}'", _currentInputPort.Key, newInput.Key);
+				this.LogDebug("UpdateInputFb: CurrentInputPort-'{CurrentKey}' == newInput-'{NewKey}'", CurrentInputPort.Key, newInput.Key);
 				return;
 			}
 
-			Debug.Console(DebugNotice, this, "UpdateInputFb: newInput key-'{0}', connectionType-'{1}', feedbackMatchObject-'{2}'",
+			this.LogDebug("UpdateInputFb: newInput key-'{Key}', connectionType-'{ConnectionType}', feedbackMatchObject-'{FeedbackMatchObject}'",
 				newInput.Key, newInput.ConnectionType, newInput.FeedbackMatchObject);
 
-			_currentInputPort = newInput;
+			if (Inputs.Items.TryGetValue(newInput.Key, out var inputItem))
+			{
+				foreach (var item in Inputs.Items.Values)
+				{
+					item.IsSelected = item.Key == inputItem.Key;
+				}
+
+				Inputs.CurrentItem = inputItem.Key;
+			}
+			else
+			{
+				this.LogWarning("UpdateInputFb: Input '{InputKey}' not found in Inputs.Items", newInput.Key);
+			}
+
+			CurrentInputPort = newInput;
 			CurrentInputFeedback.FireUpdate();
 
-			Debug.Console(DebugNotice, this, "UpdateInputFb: _currentInputPort.key-'{0}'", _currentInputPort.Key);
+			this.LogDebug("UpdateInputFb: CurrentInputPort.key-'{Key}'", CurrentInputPort.Key);
 
-			switch (_currentInputPort.Key)
+			switch (CurrentInputPort.Key)
 			{
 				case RoutingPortNames.HdmiIn1:
 					CurrentInputNumber = 1;
@@ -890,27 +912,5 @@ namespace Plugin.BarcoG60
 		}
 
 
-		#region DebugLevels
-
-		private uint DebugTrace { get; set; }
-		private uint DebugNotice { get; set; }
-		private uint DebugVerbose { get; set; }
-
-
-		public void ResetDebugLevels()
-		{
-			DebugTrace = 0;
-			DebugNotice = 1;
-			DebugVerbose = 2;
-		}
-
-		public void SetDebugLevels(uint level)
-		{
-			DebugTrace = level;
-			DebugNotice = level;
-			DebugVerbose = level;
-		}
-
-		#endregion
 	}
 }

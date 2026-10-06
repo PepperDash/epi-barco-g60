@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <ProjectType>ProgramLibrary</ProjectType>
+    <TargetFramework>net472</TargetFramework>
+    <RootNamespace>PepperDash.Essentials.Plugins.Barco.G60</RootNamespace>
+    <AssemblyName>PepperDash.Essentials.Plugins.Barco.G60</AssemblyName>
+    <PackageId>PepperDash.Essentials.Plugins.Barco.G60</PackageId>
+    <Description>This software is a plugin designed to work as a part of PepperDash Essentials for Crestron control processors. It provides control and feedback for Barco G60 Projector.</Description>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <DefineConstants>$(DefineConstants);SERIES4</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="PepperDashEssentials" Version="2.43.0">
+      <ExcludeAssets>runtime</ExcludeAssets>
+    </PackageReference>
+  </ItemGroup>
+</Project>

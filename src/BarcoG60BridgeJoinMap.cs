@@ -1,7 +1,7 @@
 ﻿using PepperDash.Essentials.Core;
 using PepperDash.Essentials.Core.Bridges;
 
-namespace Plugin.BarcoG60
+namespace PepperDash.Essentials.Plugins.Barco.G60
 {
     public class BarcoG60BridgeJoinMap : DisplayControllerJoinMap
     {
