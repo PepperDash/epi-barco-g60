@@ -151,3 +151,83 @@ The tables below document the digital, analog, and serial joins of PepeprDash Es
 |                           | 14  | Input 4 Name Feedback - VGA       |
 |                           | 15  | Input 5 Name Feedback - SDI       |
 |                           | 16  | Input 6 Name Feedback - HD Base-T |
+<!-- START Minimum Essentials Framework Versions -->
+### Minimum Essentials Framework Versions
+
+- 2.43.0
+<!-- END Minimum Essentials Framework Versions -->
+<!-- START Config Example -->
+### Config Example
+
+```json
+{
+    "key": "GeneratedKey",
+    "uid": 1,
+    "name": "GeneratedName",
+    "type": "BarcoG60Properties",
+    "group": "Group",
+    "properties": {
+        "pollIntervalMs": 0,
+        "coolingTimeMs": "SampleValue",
+        "warmingTimeMs": "SampleValue",
+        "id": "SampleValue",
+        "hasLamps": true,
+        "hasScreen": true,
+        "hasLift": true
+    }
+}
+```
+<!-- END Config Example -->
+<!-- START Supported Types -->
+
+<!-- END Supported Types -->
+<!-- START Join Maps -->
+
+<!-- END Join Maps -->
+<!-- START Interfaces Implemented -->
+### Interfaces Implemented
+
+- ICommunicationMonitor
+- IBridgeAdvanced
+- IHasInputs<string>
+- IRoutingSinkWithSwitchingWithInputPort
+- ISelectableItems<string>
+<!-- END Interfaces Implemented -->
+<!-- START Base Classes -->
+### Base Classes
+
+- DisplayControllerJoinMap
+- TwoWayDisplayBase
+<!-- END Base Classes -->
+<!-- START Public Methods -->
+### Public Methods
+
+- public void LinkToApi(BasicTriList trilist, uint joinStart, string joinMapKey, EiscApiAdvanced bridge)
+- public void SendText(string cmd)
+- public void ListRoutingInputPorts()
+- public void InputHdmi1()
+- public void InputHdmi2()
+- public void InputHdmi4()
+- public void InputHdmi5()
+- public void InputDvi1()
+- public void InputVga1()
+- public void InputToggle()
+- public void InputGet()
+- public void UpdateInputFb(string s)
+- public void PowerGet()
+- public void StatusGet()
+- public void LampGet()
+- public void Select()
+<!-- END Public Methods -->
+<!-- START Bool Feedbacks -->
+
+<!-- END Bool Feedbacks -->
+<!-- START Int Feedbacks -->
+### Int Feedbacks
+
+- CurrentInputNumberFeedback
+- LampHoursFeedback
+<!-- END Int Feedbacks -->
+<!-- START String Feedbacks -->
+
+<!-- END String Feedbacks -->
