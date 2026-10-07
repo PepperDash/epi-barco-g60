@@ -2,7 +2,7 @@
 using PepperDash.Essentials.Core;
 using PepperDash.Essentials.Core.Config;
 
-namespace Plugin.BarcoG60
+namespace PepperDash.Essentials.Plugins.Barco.G60
 {
     public class BarcoG60ControllerFactory:EssentialsPluginDeviceFactory<BarcoG60Controller>
     {
@@ -10,7 +10,7 @@ namespace Plugin.BarcoG60
         {
             TypeNames = new List<string> {"barcoG60", "barcoG60Projector" };
 
-            MinimumEssentialsFrameworkVersion = "1.10.3";
+            MinimumEssentialsFrameworkVersion = "2.43.0";
         }
 
         #region Overrides of EssentialsDeviceFactory<BarcoG60Controller>

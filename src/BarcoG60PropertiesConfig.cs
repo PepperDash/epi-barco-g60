@@ -1,6 +1,6 @@
 ﻿using Newtonsoft.Json;
 
-namespace Plugin.BarcoG60
+namespace PepperDash.Essentials.Plugins.Barco.G60
 {
 	public class BarcoG60PropertiesConfig
 	{		
