@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using Crestron.SimplSharp;
-using Crestron.SimplSharpPro.CrestronThread;
 using Crestron.SimplSharpPro.DeviceSupport;
 using PepperDash.Core;
 using PepperDash.Core.Logging;
@@ -17,10 +16,13 @@ using PepperDash.Essentials.Devices.Common.Displays;
 namespace PepperDash.Essentials.Plugins.Barco.G60
 {
 	public class BarcoG60Controller : TwoWayDisplayBase, ICommunicationMonitor,
-		IBridgeAdvanced, IHasInputs<string>, IRoutingSinkWithSwitchingWithInputPort
+		IBridgeAdvanced, IHasInputs<string>, IRoutingSinkWithSwitchingWithInputPort, IBasicVideoMuteWithFeedback
 	{
 		// https://www.barco.com/en/support/g60-w10/docs
 		// https://www.barco.com/services/website/en/TdeFiles/Download?FileNumber=R5910887&TdeType=1&Revision=01&ShowDownloadPage=False
+
+		private const long DefaultPollIntervalMs = 45000;
+		private const uint DefaultWarmCoolTimeMs = 30000;
 
 		private bool _isSerialComm;
 		private bool HasLamps { get; set; }
@@ -46,6 +48,7 @@ namespace PepperDash.Essentials.Plugins.Barco.G60
 
 
 			LampHoursFeedback = new IntFeedback("LampHours", () => LampHours);
+			VideoMuteIsOn = new BoolFeedback("VideoMuteIsOn", () => _videoMuteIsOn);
 
 			Communication = comms;
 
@@ -57,7 +60,8 @@ namespace PepperDash.Essentials.Plugins.Barco.G60
 			var socket = Communication as ISocketStatus;
 			_isSerialComm = (socket == null);
 
-			var pollIntervalMs = props.PollIntervalMs > 45000 ? props.PollIntervalMs : 45000;
+			// config values are honored when set; defaults apply only when omitted (0)
+			var pollIntervalMs = props.PollIntervalMs > 0 ? props.PollIntervalMs : DefaultPollIntervalMs;
 			CommunicationMonitor = new GenericCommunicationMonitor(this, Communication, pollIntervalMs, 180000, 300000,
 				StatusGet);
 
@@ -65,8 +69,11 @@ namespace PepperDash.Essentials.Plugins.Barco.G60
 
 			DeviceManager.AddDevice(CommunicationMonitor);
 
-			WarmupTime = props.WarmingTimeMs > 30000 ? props.WarmingTimeMs : 30000;
-			CooldownTime = props.CoolingTimeMs > 30000 ? props.CoolingTimeMs : 30000;
+			WarmupTime = props.WarmingTimeMs > 0 ? props.WarmingTimeMs : DefaultWarmCoolTimeMs;
+			CooldownTime = props.CoolingTimeMs > 0 ? props.CoolingTimeMs : DefaultWarmCoolTimeMs;
+
+			this.LogInformation("Timing: pollIntervalMs-{PollIntervalMs}, warmingTimeMs-{WarmupTime}, coolingTimeMs-{CooldownTime}",
+				pollIntervalMs, WarmupTime, CooldownTime);
 
 			HasLamps = props.HasLamps;
 			HasScreen = props.HasScreen;
@@ -172,6 +179,13 @@ namespace PepperDash.Essentials.Plugins.Barco.G60
 			// lamp hours feeback
 			LampHoursFeedback.LinkInputSig(trilist.UShortInput[joinMap.LampHours.JoinNumber]);
 
+			// video mute
+			trilist.SetSigTrueAction(joinMap.VideoMuteOn.JoinNumber, VideoMuteOn);
+			trilist.SetSigTrueAction(joinMap.VideoMuteOff.JoinNumber, VideoMuteOff);
+			trilist.SetSigTrueAction(joinMap.VideoMuteToggle.JoinNumber, VideoMuteToggle);
+			VideoMuteIsOn.LinkInputSig(trilist.BooleanInput[joinMap.VideoMuteOn.JoinNumber]);
+			VideoMuteIsOn.LinkComplementInputSig(trilist.BooleanInput[joinMap.VideoMuteOff.JoinNumber]);
+
 
 			// bridge online change
 			trilist.OnlineStatusChange += (sender, args) =>
@@ -200,6 +214,7 @@ namespace PepperDash.Essentials.Plugins.Barco.G60
 				}
 
 				LampHoursFeedback.FireUpdate();
+				VideoMuteIsOn.FireUpdate();
 			};
 		}
 
@@ -337,6 +352,18 @@ namespace PepperDash.Essentials.Plugins.Barco.G60
 						LampHours = Convert.ToInt16(responseValue);
 						break;
 					}
+				case "PMUT":
+					{
+						// projector reports PMUT as on while powered off; ignore so feedback stays cleared
+						if (!PowerIsOn)
+						{
+							this.LogVerbose("ProcessResponse: PMUT ignored, power is off");
+							break;
+						}
+
+						VideoMuteIsOnState = responseValue.Contains("1");
+						break;
+					}
 				default:
 					{
 						this.LogVerbose("ProcessResponse: unknown response '{ResponseType}'", responseType);
@@ -349,7 +376,7 @@ namespace PepperDash.Essentials.Plugins.Barco.G60
 		{
 			if (!Communication.IsConnected)
 			{
-				this.LogDebug("SendText: device {ConnectionState} connected", Communication.IsConnected ? "is" : "is not");
+				this.LogWarning("SendText: device is not connected, dropping '{Command}'", cmd);
 				return;
 			}
 
@@ -583,8 +610,7 @@ namespace PepperDash.Essentials.Plugins.Barco.G60
 		{
 			this.LogVerbose("InputHdmi1 executing...");
 			SendText("MSRC", 1);
-			Thread.Sleep(2000);
-			SendText("MSRC", "?");
+			ScheduleInputPoll();
 		}
 
 		/// <summary>
@@ -594,8 +620,7 @@ namespace PepperDash.Essentials.Plugins.Barco.G60
 		{
 			this.LogVerbose("InputHdmi2 executing...");
 			SendText("MSRC", 2);
-			Thread.Sleep(2000);
-			SendText("MSRC", "?");
+			ScheduleInputPoll();
 		}
 
 		/// <summary>
@@ -605,8 +630,7 @@ namespace PepperDash.Essentials.Plugins.Barco.G60
 		{
 			this.LogVerbose("InputHdmi4 (HD-BaseT) executing...");
 			SendText("MSRC", 4);
-			Thread.Sleep(2000);
-			SendText("MSRC", "?");
+			ScheduleInputPoll();
 		}
 
 		/// <summary>
@@ -616,8 +640,7 @@ namespace PepperDash.Essentials.Plugins.Barco.G60
 		{
 			this.LogVerbose("InputHdmi5 (SDI) executing...");
 			SendText("MSRC", 5);
-			Thread.Sleep(2000);
-			SendText("MSRC", "?");
+			ScheduleInputPoll();
 		}
 
 		/// <summary>
@@ -627,8 +650,7 @@ namespace PepperDash.Essentials.Plugins.Barco.G60
 		{
 			this.LogVerbose("InputDvi1 executing...");
 			SendText("MSRC", 3);
-			Thread.Sleep(2000);
-			SendText("MSRC", "?");
+			ScheduleInputPoll();
 		}
 
 		/// <summary>
@@ -638,8 +660,7 @@ namespace PepperDash.Essentials.Plugins.Barco.G60
 		{
 			this.LogVerbose("InputVga1 executing...");
 			SendText("MSRC", 0);
-			Thread.Sleep(2000);
-			SendText("MSRC", "?");
+			ScheduleInputPoll();
 		}
 
 		/// <summary>
@@ -752,6 +773,17 @@ namespace PepperDash.Essentials.Plugins.Barco.G60
 
 				_powerIsOn = value;
 				PowerIsOnFeedback.FireUpdate();
+
+				if (_powerIsOn)
+				{
+					// power just reported on; refresh picture mute state after the power poll
+					ScheduleVideoMutePoll();
+				}
+				else
+				{
+					// projector reports picture mute as on while off; clear it so feedback isn't stale
+					VideoMuteIsOnState = false;
+				}
 			}
 		}
 
@@ -819,11 +851,16 @@ namespace PepperDash.Essentials.Plugins.Barco.G60
 		/// </summary>
 		public override void PowerOn()
 		{
-			if (IsWarmingUp || IsCoolingDown) return;
+			if (IsWarmingUp || IsCoolingDown)
+			{
+				this.LogInformation("PowerOn: ignored, device is {State}", IsWarmingUp ? "warming up" : "cooling down");
+				return;
+			}
 
 			if (!PowerIsOn) IsWarmingUp = true;
 
 			SendText("POWR", 1);		// power on, alternate cmds: "SBPM", "DPON"
+			SchedulePowerPoll();
 		}
 
 		/// <summary>
@@ -831,11 +868,62 @@ namespace PepperDash.Essentials.Plugins.Barco.G60
 		/// </summary>
 		public override void PowerOff()
 		{
-			if (IsWarmingUp || IsCoolingDown) return;
+			if (IsWarmingUp || IsCoolingDown)
+			{
+				this.LogInformation("PowerOff: ignored, device is {State}", IsWarmingUp ? "warming up" : "cooling down");
+				return;
+			}
 
 			if (PowerIsOn) IsCoolingDown = true;
 
-			SendText("POWR", 0);		// power off, alternate cmds: "SBPM", "DPON" 
+			SendText("POWR", 0);		// power off, alternate cmds: "SBPM", "DPON"
+			SchedulePowerPoll();
+		}
+
+		private const long CommandPollDelayMs = 2000;
+		private readonly object _pollTimerLock = new object();
+		private CTimer _powerPollTimer;
+		private CTimer _inputPollTimer;
+		private CTimer _videoMutePollTimer;
+
+		/// <summary>
+		/// Polls video mute state once, CommandPollDelayMs after power is reported on, without blocking the caller.
+		/// </summary>
+		private void ScheduleVideoMutePoll()
+		{
+			SchedulePoll(ref _videoMutePollTimer, VideoMuteGet);
+		}
+
+		/// <summary>
+		/// Polls power state once, CommandPollDelayMs after a power command, without blocking the caller.
+		/// Repeated commands restart the delay.
+		/// </summary>
+		private void SchedulePowerPoll()
+		{
+			SchedulePoll(ref _powerPollTimer, PowerGet);
+		}
+
+		/// <summary>
+		/// Polls input state once, CommandPollDelayMs after an input command, without blocking the caller.
+		/// Repeated commands restart the delay.
+		/// </summary>
+		private void ScheduleInputPoll()
+		{
+			SchedulePoll(ref _inputPollTimer, InputGet);
+		}
+
+		private void SchedulePoll(ref CTimer timer, Action poll)
+		{
+			lock (_pollTimerLock)
+			{
+				if (timer == null)
+				{
+					timer = new CTimer(o => poll(), CommandPollDelayMs);
+					return;
+				}
+
+				timer.Reset(CommandPollDelayMs);
+			}
 		}
 
 		/// <summary>
@@ -876,6 +964,9 @@ namespace PepperDash.Essentials.Plugins.Barco.G60
 			CrestronEnvironment.Sleep(2000);
 			InputGet();
 
+			CrestronEnvironment.Sleep(2000);
+			VideoMuteGet();
+
 			if (!HasLamps) return;
 
 			CrestronEnvironment.Sleep(2000);
@@ -910,6 +1001,80 @@ namespace PepperDash.Essentials.Plugins.Barco.G60
 		{
 			SendText("LSHS", "?");
 		}
+
+		#region IBasicVideoMuteWithFeedback Members
+
+		private bool _videoMuteIsOn;
+
+		/// <summary>
+		/// Video mute (picture mute / shutter closed) feedback
+		/// </summary>
+		public BoolFeedback VideoMuteIsOn { get; private set; }
+
+		/// <summary>
+		/// Tracked video mute state, updated from device responses
+		/// </summary>
+		public bool VideoMuteIsOnState
+		{
+			get { return _videoMuteIsOn; }
+			private set
+			{
+				if (_videoMuteIsOn == value) return;
+
+				_videoMuteIsOn = value;
+				VideoMuteIsOn.FireUpdate();
+			}
+		}
+
+		/// <summary>
+		/// Video mute on (shutter closed)
+		/// </summary>
+		public void VideoMuteOn()
+		{
+			SendText("PMUT", 1);
+			VideoMuteGet();
+		}
+
+		/// <summary>
+		/// Video mute off (shutter open)
+		/// </summary>
+		public void VideoMuteOff()
+		{
+			SendText("PMUT", 0);
+			VideoMuteGet();
+		}
+
+		/// <summary>
+		/// Toggles video mute based on current feedback state
+		/// </summary>
+		public void VideoMuteToggle()
+		{
+			if (_videoMuteIsOn)
+			{
+				VideoMuteOff();
+			}
+			else
+			{
+				VideoMuteOn();
+			}
+		}
+
+		/// <summary>
+		/// Polls video mute state
+		/// </summary>
+		public void VideoMuteGet()
+		{
+			// projector reports PMUT as on while powered off, so only poll when on
+			if (!PowerIsOn)
+			{
+				this.LogVerbose("VideoMuteGet: skipped, power is off");
+				return;
+			}
+
+			SendText("PMUT", "?");
+		}
+
+		#endregion
 
 
 	}
