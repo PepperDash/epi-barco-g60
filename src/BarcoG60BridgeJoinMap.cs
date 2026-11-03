@@ -133,6 +133,54 @@ namespace PepperDash.Essentials.Plugins.Barco.G60
 				JoinType = eJoinType.Digital
 			});
 
+        [JoinName("VideoMuteOn")]
+        public JoinDataComplete VideoMuteOn = new JoinDataComplete(
+                new JoinData
+                {
+                    JoinNumber = 38,
+                    JoinSpan = 1
+                },
+                new JoinMetadata
+                {
+                    Description = "Video mute on and feedback",
+                    JoinCapabilities = eJoinCapabilities.ToFromSIMPL,
+                    JoinType = eJoinType.Digital
+                });
+
+        /// <summary>
+        /// Digital join for turning video mute off and providing feedback
+        /// </summary>
+        [JoinName("VideoMuteOff")]
+        public JoinDataComplete VideoMuteOff = new JoinDataComplete(
+                new JoinData
+                {
+                    JoinNumber = 39,
+                    JoinSpan = 1
+                },
+                new JoinMetadata
+                {
+                    Description = "Video mute off and feedback",
+                    JoinCapabilities = eJoinCapabilities.ToFromSIMPL,
+                    JoinType = eJoinType.Digital
+                });
+
+        /// <summary>
+        /// Digital join for toggling video mute state
+        /// </summary>
+        [JoinName("VideoMuteToggle")]
+        public JoinDataComplete VideoMuteToggle = new JoinDataComplete(
+                new JoinData
+                {
+                    JoinNumber = 40,
+                    JoinSpan = 1
+                },
+                new JoinMetadata
+                {
+                    Description = "Video mute toggle",
+                    JoinCapabilities = eJoinCapabilities.FromSIMPL,
+                    JoinType = eJoinType.Digital
+                });
+
         //[JoinName("ButtonVisibilityOffset")]
         //public JoinDataComplete ButtonVisibilityOffset = new JoinDataComplete(
         //    new JoinData
